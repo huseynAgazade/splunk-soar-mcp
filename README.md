@@ -279,6 +279,20 @@ python scripts/smoke_test.py    # drives the server over stdio as a real MCP cli
 python scripts/smoke_test.py --live   # ...and calls the configured instance
 ```
 
+To exercise every registered tool against a real instance and get a coverage
+report of what was and was not called:
+
+```bash
+python scripts/test_all_tools.py                    # local builders + all reads
+python scripts/test_all_tools.py --write            # + writes, confined to --label
+python scripts/test_all_tools.py --write --full     # + create/delete, self-cleaning
+python scripts/test_all_tools.py --write --full --execute \
+    --playbook "My Playbook" --action "geolocate ip" --asset maxmind
+```
+
+Writes are confined to `--label` (default `test_label`) and every object the
+script creates, it deletes.
+
 Layout:
 
 ```
@@ -291,7 +305,8 @@ src/splunk_soar_mcp/
   tools/          platform, playbooks, containers, lists, run, raw, vpe
   vpe/blocks.py   clipboard payload codec and node builders
   reference/      the markdown served as resources
-scripts/smoke_test.py   an example MCP client that exercises the server
+scripts/smoke_test.py       an example MCP client
+scripts/test_all_tools.py   exhaustive tool exerciser with a coverage report
 ```
 
 Adding a tool: write it in the right `tools/` module with a `@mcp.tool` decorator, a
