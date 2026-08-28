@@ -6,6 +6,25 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- `soar_add_comment` posted to `container/<id>`, which SOAR answers with
+  `{"success": true}` while silently creating nothing. It now posts to
+  `container_comment`, verified against 7.1.
+- `soar_get_playbook_run_log` no longer falls back to `playbook_run_log`, an
+  endpoint that returns `403 Not allowed`; an empty log now reports the run's
+  status, since a run still executing has not written one yet.
+- httpx no longer logs one INFO line per REST call into the client's log pane.
+
+### Changed
+
+- Credentials come from the environment or an env file only. The bespoke
+  `secrets.txt` search was removed; `SOAR_MCP_ENV_FILE` overrides the env file
+  path, which a stdio server usually needs since it inherits its client's
+  working directory.
+- Every tool that reaches the instance is now annotated `open_world_hint=True`;
+  only the local block builders are closed-world.
+
 ## [0.1.0]
 
 Initial release.

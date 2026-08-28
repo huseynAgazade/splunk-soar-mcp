@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import pytest
 import respx
@@ -171,3 +173,25 @@ async def test_deletes_and_execution_are_marked_destructive():
     for tool in await all_tools():
         if tool.name in expected:
             assert tool.annotations.destructive_hint is True, tool.name
+
+
+@respx.mock
+async def test_add_comment_posts_to_the_collection_that_actually_works():
+    # SOAR answers {"success": true} for container/<id> and
+    # container/<id>/comments too, but creates nothing. Pin the one that works.
+    respx.get(f"{BASE}/rest/container/42").mock(
+        return_value=httpx.Response(200, json={"id": 42, "label": "lab"})
+    )
+    route = respx.post(f"{BASE}/rest/container_comment").mock(
+        return_value=httpx.Response(200, json={"success": True, "id": 134})
+    )
+    server = build_server(make_settings())
+    result = await server.call_tool(
+        "soar_add_comment", {"container_id": 42, "comment": "hello"}
+    )
+    assert route.called
+    assert json.loads(route.calls.last.request.content) == {
+        "container_id": 42,
+        "comment": "hello",
+    }
+    assert "134" in str(result)

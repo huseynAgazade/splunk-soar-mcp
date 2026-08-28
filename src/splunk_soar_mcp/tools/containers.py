@@ -214,8 +214,13 @@ def register_writes(mcp: MCPServer, app: SoarApp) -> None:
         """
         container_id = int(container_id)
         app.require_label(await _label_of(app, container_id))
-        await app.client.post(f"container/{container_id}", {"comment": comment})
-        return f"Comment added to container {container_id}."
+        # Comments go to their own collection. Posting {"comment": ...} to the
+        # container, or to container/<id>/comments, returns {"success": true}
+        # and silently creates nothing — verified against 7.1.
+        result = await app.client.post(
+            "container_comment", {"container_id": container_id, "comment": comment}
+        )
+        return f"Comment {result.get('id')} added to container {container_id}."
 
     @mcp.tool(
         title="Add container note",
