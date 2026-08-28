@@ -71,3 +71,22 @@ def test_raw_response_text_is_scrubbed():
     assert "hunter2" not in out
     assert '"name": "x"' in out
     assert '"id": 4' in out
+
+
+@pytest.mark.parametrize("key", ["google_maps_key", "ssh_key", "signing_key", "hmac_key"])
+def test_trailing_key_is_treated_as_a_credential(key):
+    assert is_sensitive_key(key)
+
+
+@pytest.mark.parametrize("key", ["conditionKey", "comparisonKey", "sort_key", "cef_key", "key"])
+def test_structural_keys_are_not_redacted(key):
+    # The visual editor's node format uses conditionKey/comparisonKey; redacting
+    # them would corrupt a decoded block.
+    assert not is_sensitive_key(key)
+
+
+def test_decoded_vpe_block_survives_redaction():
+    node = {"conditions": [{"conditionKey": "condition_key_0",
+                            "comparisons": [{"comparisonKey": "comparison_key_0",
+                                             "op": "==", "param": "x", "value": "1"}]}]}
+    assert redact(node) == node

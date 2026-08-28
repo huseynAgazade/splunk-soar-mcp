@@ -65,6 +65,65 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
 
 def register_writes(mcp: MCPServer, app: SoarApp) -> None:
     @mcp.tool(
+        title="Create custom list",
+        annotations=WRITE,
+        description=(
+            "Create a new custom list with optional initial rows. Every row should "
+            "have the same number of cells — playbooks read lists positionally."
+        ),
+    )
+    async def soar_create_custom_list(name: str, rows: list[list[str]] | None = None) -> str:
+        """Create a custom list.
+
+        Args:
+            name: Name for the new list. Must not already exist.
+            rows: Initial contents, as a list of rows. Omit for an empty list.
+        """
+        result = await app.client.post(
+            "decided_list", {"name": name, "content": [list(r) for r in (rows or [])]}
+        )
+        return (
+            f"Custom list {name!r} created with id {result.get('id')} "
+            f"and {len(rows or [])} row(s)."
+        )
+
+    @mcp.tool(
+        title="Update custom list row",
+        annotations=ToolAnnotations(
+            read_only_hint=False,
+            destructive_hint=False,
+            idempotent_hint=True,
+            open_world_hint=True,
+        ),
+        description=(
+            "Replace one row of a custom list, leaving every other row untouched. "
+            "Row numbers are zero-based and match soar_get_custom_list's `#` column. "
+            "Prefer this over replacing the whole list when you mean to change one entry."
+        ),
+    )
+    async def soar_update_custom_list_row(
+        list_ref: str, row_index: int, row: list[str]
+    ) -> str:
+        """Replace a single row.
+
+        Args:
+            list_ref: List id or name fragment.
+            row_index: Zero-based row number, as shown by soar_get_custom_list.
+            row: The replacement cells for that row.
+        """
+        record = await app.client.resolve("decided_list", list_ref, label="custom list")
+        existing = record.get("content") or []
+        if not 0 <= int(row_index) < len(existing):
+            return (
+                f"List {record.get('name')!r} has {len(existing)} row(s); "
+                f"row_index {row_index} is out of range."
+            )
+        await app.client.post(
+            f"decided_list/{record['id']}", {"update_rows": {str(int(row_index)): list(row)}}
+        )
+        return f"Row {row_index} of list {record.get('name')!r} replaced."
+
+    @mcp.tool(
         title="Append row to custom list",
         annotations=WRITE,
         description=(
@@ -111,3 +170,36 @@ def register_writes(mcp: MCPServer, app: SoarApp) -> None:
             f"List {record.get('name')!r} (id={record['id']}) replaced: "
             f"{before} row(s) -> {len(rows)} row(s)."
         )
+
+
+def register_destructive(mcp: MCPServer, app: SoarApp) -> None:
+    """List deletion. Registered only in `full` mode."""
+
+    @mcp.tool(
+        title="Delete custom list",
+        annotations=ToolAnnotations(
+            read_only_hint=False, destructive_hint=True, open_world_hint=True
+        ),
+        description=(
+            "Permanently delete a custom list. Playbooks that read it will start "
+            "failing, so check what uses it first. Requires the list's exact name "
+            "to confirm."
+        ),
+    )
+    async def soar_delete_custom_list(list_ref: str, confirm_name: str) -> str:
+        """Delete a custom list.
+
+        Args:
+            list_ref: List id or name fragment.
+            confirm_name: The list's exact name, as a guard against deleting the
+                wrong one. The call fails if it does not match.
+        """
+        record = await app.client.resolve("decided_list", list_ref, label="custom list")
+        actual = record.get("name") or ""
+        if confirm_name.strip() != actual.strip():
+            return (
+                f"Refusing to delete: list {record['id']} is named {actual!r}, "
+                f"but confirm_name was {confirm_name!r}."
+            )
+        await app.client.delete(f"decided_list/{record['id']}")
+        return f"Custom list {actual!r} (id {record['id']}) deleted."

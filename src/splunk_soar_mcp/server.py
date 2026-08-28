@@ -9,7 +9,18 @@ from mcp.server.mcpserver import MCPServer
 from . import prompts, resources
 from .app import SoarApp
 from .config import Mode, Settings, load_settings
-from .tools import containers, lists, platform, playbooks, raw, run, vpe
+from .tools import (
+    admin,
+    containers,
+    lists,
+    metadata,
+    platform,
+    playbooks,
+    raw,
+    run,
+    users,
+    vpe,
+)
 
 INSTRUCTIONS = """\
 Tools for a Splunk SOAR (Phantom) on-prem instance.
@@ -55,6 +66,9 @@ def build_server(settings: Settings | None = None) -> MCPServer:
     # Read tools are always present.
     platform.register(mcp, app)
     playbooks.register(mcp, app)
+    admin.register(mcp, app)
+    metadata.register(mcp, app)
+    users.register(mcp, app)
     containers.register(mcp, app)
     lists.register(mcp, app)
     vpe.register(mcp, app)
@@ -69,6 +83,8 @@ def build_server(settings: Settings | None = None) -> MCPServer:
     if settings.mode.allows(Mode.FULL):
         run.register(mcp, app)
         containers.register_destructive(mcp, app)
+        lists.register_destructive(mcp, app)
+        users.register_writes(mcp, app)
         raw.register_writes(mcp, app)
 
     return mcp

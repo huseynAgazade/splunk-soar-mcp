@@ -48,6 +48,20 @@ SENSITIVE_KEY_PARTS: tuple[str, ...] = (
 #: `auth_token_type` or `has_password` would be redacted for no reason.
 ALLOWED_KEYS: frozenset[str] = frozenset(
     {
+        # Structural keys that end in "key" but hold no secret. The visual
+        # editor's node format uses the first two heavily.
+        "conditionkey",
+        "comparisonkey",
+        "sortkey",
+        "primarykey",
+        "foreignkey",
+        "cachekey",
+        "groupkey",
+        "rowkey",
+        "partitionkey",
+        "idempotencykey",
+        "cefkey",
+        "key",
         "tokenization",
         "haspassword",
         "passwordrequired",
@@ -77,7 +91,12 @@ def is_sensitive_key(key: str) -> bool:
     normalised = _NORMALISE.sub("", str(key).lower())
     if normalised in ALLOWED_KEYS:
         return False
-    return any(part in normalised for part in SENSITIVE_KEY_PARTS)
+    if any(part in normalised for part in SENSITIVE_KEY_PARTS):
+        return True
+    # A trailing "key" is a credential often enough — `google_maps_key`,
+    # `ssh_key`, `signing_key` — that the default has to be to redact it.
+    # Structural exceptions are listed in ALLOWED_KEYS above.
+    return normalised.endswith("key")
 
 
 def redact(value: Any) -> Any:

@@ -312,6 +312,91 @@ async def phase_read(run: Runner, args) -> dict:
     return found
 
 
+async def phase_admin(run: Runner) -> None:
+    """Administration, metadata, users and roles — all read-only."""
+    run.phase("PHASE 2b — administration, metadata, users and roles")
+
+    await run.call("soar_get_system_settings", {})
+    await run.call("soar_get_system_settings", {"section": "company_info_settings"})
+    await run.call("soar_get_license", {})
+    await run.call("soar_get_system_health", {})
+    await run.call("soar_list_cluster_nodes", {})
+    await run.call("soar_list_feature_flags", {"query": "playbook"})
+    await run.call("soar_list_ingestion_status", {"page_size": 3})
+
+    await run.call("soar_list_container_statuses", {})
+    await run.call("soar_list_severities", {})
+    await run.call("soar_list_custom_fields", {})
+    await run.call("soar_list_cef_fields", {"query": "address"})
+
+    workbooks = await run.call("soar_list_workbooks", {"page_size": 5})
+    if (workbook_id := first_id(workbooks)):
+        await run.call("soar_get_workbook", {"workbook_ref": workbook_id})
+    else:
+        run.record("soar_get_workbook", SKIP, "no workbook templates defined")
+
+    users = await run.call("soar_list_users", {"page_size": 5})
+    if (user_id := first_id(users)):
+        await run.call("soar_get_user", {"user_ref": user_id})
+    else:
+        run.record("soar_get_user", SKIP, "no users returned")
+
+    roles = await run.call("soar_list_roles", {})
+    if (role_id := first_id(roles)):
+        await run.call("soar_get_role", {"role_ref": role_id})
+    else:
+        run.record("soar_get_role", SKIP, "no roles returned")
+
+
+async def phase_admin_writes(run: Runner) -> None:
+    """Custom list and role lifecycles, entirely on objects this script creates."""
+    run.phase("PHASE 3b — custom list and role lifecycles (throwaway objects)")
+    stamp = int(time.time())
+
+    list_name = f"zz_mcp_probe_list_{stamp}"
+    created_list = await run.call(
+        "soar_create_custom_list", {"name": list_name, "rows": [["a", "1"], ["b", "2"]]}
+    )
+    if created_list:
+        await run.call(
+            "soar_update_custom_list_row",
+            {"list_ref": list_name, "row_index": 0, "row": ["A", "99"]},
+        )
+        await run.call("soar_append_to_custom_list", {"list_ref": list_name, "row": ["c", "3"]})
+        await run.call("soar_get_custom_list", {"list_ref": list_name})
+        await run.call(
+            "soar_replace_custom_list", {"list_ref": list_name, "rows": [["only", "row"]]}
+        )
+        await run.call(
+            "soar_delete_custom_list", {"list_ref": list_name, "confirm_name": list_name}
+        )
+    else:
+        for tool in ("soar_update_custom_list_row", "soar_append_to_custom_list",
+                     "soar_replace_custom_list", "soar_delete_custom_list"):
+            run.record(tool, SKIP, "no throwaway list to work on")
+
+    role_name = f"zz_mcp_probe_role_{stamp}"
+    created_role = await run.call(
+        "soar_create_role",
+        {
+            "name": role_name,
+            "description": "Created by test_all_tools.py. Safe to delete.",
+            "permissions": {"containers": {"view": "allow"}},
+        },
+    )
+    if created_role:
+        await run.call("soar_get_role", {"role_ref": role_name})
+        await run.call(
+            "soar_update_role", {"role_ref": role_name, "description": "edited by the probe"}
+        )
+        await run.call(
+            "soar_delete_role", {"role_ref": role_name, "confirm_name": role_name}
+        )
+    else:
+        for tool in ("soar_update_role", "soar_delete_role"):
+            run.record(tool, SKIP, "no throwaway role to work on")
+
+
 async def phase_write(run: Runner, args, found: dict) -> str | None:
     """Writes, confined to --label. Creates its own container when it can."""
     run.phase(f"PHASE 3 — writes (label={args.label!r})")
@@ -374,7 +459,7 @@ async def phase_write(run: Runner, args, found: dict) -> str | None:
                                {"list_ref": args.list_name, "rows": rows})
             except json.JSONDecodeError:
                 run.record("soar_replace_custom_list", SKIP, "could not parse list contents")
-    else:
+    elif "soar_create_custom_list" not in run.available:
         run.record("soar_append_to_custom_list", SKIP, "pass --list-name to test list writes")
         run.record("soar_replace_custom_list", SKIP, "pass --list-name to test list writes")
 
@@ -466,10 +551,12 @@ async def main(args) -> int:
             return run.summary()
 
         found = await phase_read(run, args)
+        await phase_admin(run)
 
         created = None
         if args.write:
             created = await phase_write(run, args, found)
+            await phase_admin_writes(run)
             if args.full:
                 await phase_raw_writes(run, created)
             if args.execute:

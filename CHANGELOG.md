@@ -6,6 +6,22 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Administration reads: `soar_get_system_settings` (34 sections, with a guide to
+  which admin page each backs), `soar_get_license`, `soar_get_system_health`,
+  `soar_list_cluster_nodes`, `soar_list_feature_flags`, `soar_list_ingestion_status`.
+- Event metadata: `soar_list_container_statuses`, `soar_list_severities`,
+  `soar_list_custom_fields`, `soar_list_cef_fields`, `soar_list_workbooks`,
+  `soar_get_workbook`.
+- Users and roles: `soar_list_users`, `soar_get_user`, `soar_list_roles`,
+  `soar_get_role` with its permission matrix, plus `soar_create_role`,
+  `soar_update_role` and `soar_delete_role` in `full` mode. Platform built-in
+  roles are refused, and deletion requires the role's exact name.
+- Custom list lifecycle: `soar_create_custom_list`, `soar_update_custom_list_row`
+  (a targeted row replacement rather than rewriting the list), and
+  `soar_delete_custom_list` in `full` mode.
+
 ### Fixed
 
 - `soar_add_comment` posted to `container/<id>`, which SOAR answers with

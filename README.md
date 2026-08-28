@@ -68,9 +68,9 @@ talked into using one.
 
 | Mode | Tools | What it can do |
 |---|---:|---|
-| `readonly` | 35 | Every query. Cannot change anything. |
-| `standard` *(default)* | 41 | ...plus notes, comments, artifacts, container status/severity/owner, custom-list rows. |
-| `full` | 48 | ...plus running playbooks and app actions, creating and deleting containers and artifacts, raw POST/DELETE. |
+| `readonly` | 51 | Every query, administration included. Cannot change anything. |
+| `standard` *(default)* | 59 | ...plus notes, comments, artifacts, container status/severity/owner, and custom lists. |
+| `full` | 70 | ...plus running playbooks and app actions, creating and deleting containers, lists and roles, raw POST/DELETE. |
 
 Two further guards:
 
@@ -275,8 +275,60 @@ Installed with `pip` instead of `uv`? Use `"command": "splunk-soar-mcp"` and dro
 |---|---|---|
 | `soar_list_custom_lists` | read | Custom lists (`decided_list`). |
 | `soar_get_custom_list` | read | One list's contents as a grid. |
+| `soar_create_custom_list` | standard | Create a list, optionally with initial rows. |
 | `soar_append_to_custom_list` | standard | Append one row, leaving existing rows alone. |
+| `soar_update_custom_list_row` | standard | Replace one row by index — the surgical option. |
 | `soar_replace_custom_list` | standard | Replace the whole list. |
+| `soar_delete_custom_list` | full | Delete a list — requires its exact name to confirm. |
+
+### Administration
+
+Read-only by design. The administration surface holds an instance's credentials and
+tenant arrangements; a misconfigured SMTP relay or authentication setting is not
+something an assistant should be able to change by accident.
+
+| Tool | Purpose |
+|---|---|
+| `soar_get_system_settings` | Instance settings by section — company info, ROI, email, forwarders, credential management, playbook execution, authentication, account security, debug levels, audit-trail config, clustering, FIPS, multi-tenancy. Call it bare to list the 34 sections and which admin page each backs. |
+| `soar_get_license` | Licence status, entitlements and current usage. |
+| `soar_get_system_health` | Service states plus load, memory, swap, database and vault utilisation. |
+| `soar_list_cluster_nodes` | Cluster members. Empty on a single node. |
+| `soar_list_feature_flags` | Platform feature flags and their values. |
+| `soar_list_ingestion_status` | Ingestion runs per asset — finds an on-poll integration that stopped. |
+
+### Event metadata
+
+The vocabulary a playbook works in. Reading these is what stops a block being written
+against a status or field that does not exist on the instance.
+
+| Tool | Purpose |
+|---|---|
+| `soar_list_container_statuses` | Configured statuses — the values `soar_update_container` accepts. |
+| `soar_list_severities` | Configured severities, with display order and colour. |
+| `soar_list_custom_fields` | Container custom fields and their types. |
+| `soar_list_cef_fields` | CEF field definitions and what each `contains`. |
+| `soar_list_workbooks` | Workbook templates. |
+| `soar_get_workbook` | One workbook's phases and tasks, in order. |
+
+### Users and roles
+
+| Tool | Mode | Purpose |
+|---|---|---|
+| `soar_list_users` · `soar_get_user` | read | Platform users and their roles. |
+| `soar_list_roles` | read | Roles. `immutable` marks a platform built-in. |
+| `soar_get_role` | read | One role's full permission matrix. |
+| `soar_create_role` | full | Create a role. Unspecified verbs default to `deny`. |
+| `soar_update_role` | full | Change name, description or permissions. |
+| `soar_delete_role` | full | Delete a role — exact name required to confirm. |
+
+Permission areas: `apps`, `assets`, `automation_broker`, `case_management`, `containers`,
+`custom_lists`, `onprem_automation`, `playbooks`, `system_settings`, `users_roles`,
+`workbooks`. Verbs: `view`, `edit`, `delete`, `execute`.
+
+Two guards on role management: platform built-ins (`immutable: true`) are refused
+outright, and deletion requires the role's exact name. Note that SOAR **soft-deletes**
+roles — the role is disabled and leaves the listing, but the record stays fetchable by id
+and a second delete returns 404.
 
 ### Execution — `full` mode only
 
