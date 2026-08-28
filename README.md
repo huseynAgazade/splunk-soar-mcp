@@ -1,5 +1,9 @@
 # splunk-soar-mcp
 
+[![PyPI](https://img.shields.io/pypi/v/splunk-soar-mcp)](https://pypi.org/project/splunk-soar-mcp/)
+[![Python](https://img.shields.io/pypi/pyversions/splunk-soar-mcp)](https://pypi.org/project/splunk-soar-mcp/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 An [MCP](https://modelcontextprotocol.io) server for **Splunk SOAR** (formerly Phantom).
 
 It gives an AI assistant a first-class view of a SOAR instance — apps, assets, playbooks,
@@ -227,12 +231,12 @@ Installed with `pip` instead of `uv`? Use `"command": "splunk-soar-mcp"` and dro
 
 | Tool | Purpose |
 |---|---|
-| `soar_system_info` | Version, base URL, and this server's mode. Call it first. |
+| `soar_system_info` | Instance version, base URL, this server's mode and label scope. Call it first. |
 | `soar_list_apps` | Installed apps, filterable by name. |
 | `soar_list_app_actions` | The actions an app exposes. |
 | `soar_get_app_action` | One action in full — every parameter and output datapath. |
 | `soar_list_assets` | Configured assets. |
-| `soar_get_asset` | One asset's full configuration. |
+| `soar_get_asset` | One asset's full configuration, credentials redacted. |
 | `soar_list_custom_functions` | Custom functions available to playbooks. |
 | `soar_get_custom_function` | One custom function, with its inputs, outputs and source. |
 | `soar_list_repos` | Source-control repositories. |
@@ -443,7 +447,9 @@ src/splunk_soar_mcp/
   app.py          shared runtime state, the label allowlist guard
   server.py       builds the server, registers tools per mode
   formatting.py   compact table rendering
-  tools/          platform, playbooks, containers, lists, run, raw, vpe
+  redaction.py    strips credentials from every response
+  tools/          platform, playbooks, containers, lists, admin, metadata,
+                  users, run, raw, vpe
   vpe/blocks.py   clipboard payload codec and node builders
   reference/      the markdown served as resources
 scripts/smoke_test.py       an example MCP client
@@ -465,9 +471,13 @@ reaches the model, where a plain exception would be masked.
 - **Use `SOAR_MCP_ALLOWED_LABELS` on multi-tenant instances.** It is the difference between
   an assistant that can comment on one customer's cases and one that can comment on all of
   them.
-- **Prefer a CA bundle to `SOAR_MCP_VERIFY_SSL=false`.** On-prem SOAR usually ships a
-  self-signed certificate; point `SOAR_MCP_CA_BUNDLE` at it rather than disabling
-  verification.
+- **On self-signed certificates.** On-prem SOAR usually ships one. If it is signed by a CA
+  you control, point `SOAR_MCP_CA_BUNDLE` at that CA and keep verification on. If it is
+  self-signed by the appliance itself, pinning it often *cannot* work: SOAR's default
+  certificate carries no Authority Key Identifier, and Python 3.13+ enables
+  `ssl.VERIFY_X509_STRICT` by default, which rejects such a certificate as its own CA even
+  though OpenSSL accepts the chain. In that case `SOAR_MCP_VERIFY_SSL=false` on a trusted
+  network is the honest option — the alternative is a CA bundle that silently does nothing.
 - Found a vulnerability? See [SECURITY.md](SECURITY.md).
 
 ## License
