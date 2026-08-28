@@ -1,0 +1,58 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "splunk-soar-mcp"
+version = "0.1.0"
+description = "MCP server for Splunk SOAR (Phantom) — query and drive playbooks, containers, artifacts, apps and custom lists, and generate visual-editor blocks."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["mcp", "model-context-protocol", "splunk", "soar", "phantom", "security", "soc", "automation", "playbook"]
+authors = [{ name = "Huseyn Aghazada" }]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Information Technology",
+    "Topic :: Security",
+    "Topic :: System :: Systems Administration",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "mcp>=2.0.0",
+    "httpx>=0.27",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "respx>=0.21", "ruff>=0.6"]
+
+[project.scripts]
+splunk-soar-mcp = "splunk_soar_mcp.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/OWNER/splunk-soar-mcp"
+Repository = "https://github.com/OWNER/splunk-soar-mcp"
+Issues = "https://github.com/OWNER/splunk-soar-mcp/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/splunk_soar_mcp"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
