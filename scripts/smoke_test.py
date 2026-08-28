@@ -101,7 +101,7 @@ async def main(live: bool) -> int:
             result = await session.call_tool("soar_system_info", {})
             print("\n--- soar_system_info ---")
             print(text_of(result))
-            ok &= check("live instance reachable", not result.isError)
+            ok &= check("live instance reachable", not result.is_error)
 
     print("\n" + ("all checks passed" if ok else "SOME CHECKS FAILED"))
     return 0 if ok else 1
