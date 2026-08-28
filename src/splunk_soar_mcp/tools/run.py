@@ -10,7 +10,9 @@ from mcp.types import ToolAnnotations
 from ..app import SoarApp
 from ..formatting import to_json
 
-EXECUTE = ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=False)
+EXECUTE = ToolAnnotations(
+    read_only_hint=False, destructive_hint=True, idempotent_hint=False, open_world_hint=True
+)
 
 
 def register(mcp: MCPServer, app: SoarApp) -> None:

@@ -12,8 +12,12 @@ from ..errors import SoarError
 from ..formatting import details, listing, to_json
 
 READ = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=True)
-WRITE = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False)
-DESTRUCTIVE = ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=False)
+WRITE = ToolAnnotations(
+    read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=True
+)
+DESTRUCTIVE = ToolAnnotations(
+    read_only_hint=False, destructive_hint=True, idempotent_hint=False, open_world_hint=True
+)
 
 CONTAINER_FIELDS = [
     "id", "name", "label", "status", "severity", "sensitivity", "owner_name",

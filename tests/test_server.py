@@ -106,3 +106,68 @@ async def test_vpe_block_tool_round_trips_through_the_server():
         "soar_decode_vpe_block", {"payload": payload, "summary_only": True}
     )
     assert "format" in str(decoded)
+
+
+# --- tool annotations -------------------------------------------------------
+#
+# The block builders are pure local computation; everything else reaches the
+# live instance. That distinction is what open_world_hint exists to express, so
+# it is pinned here rather than left to whoever adds the next tool.
+
+LOCAL_TOOLS = {
+    "soar_build_action_block",
+    "soar_build_code_block",
+    "soar_build_custom_function_block",
+    "soar_build_decision_block",
+    "soar_build_format_block",
+    "soar_build_playbook_block",
+    "soar_decode_vpe_block",
+    "soar_encode_vpe_block",
+}
+
+
+async def all_tools():
+    server = build_server(make_settings(SOAR_MCP_MODE="full"))
+    return await server.list_tools()
+
+
+async def test_every_tool_is_annotated():
+    for tool in await all_tools():
+        assert tool.annotations is not None, tool.name
+        assert tool.annotations.read_only_hint is not None, tool.name
+
+
+async def test_local_builders_are_closed_world():
+    for tool in await all_tools():
+        if tool.name in LOCAL_TOOLS:
+            assert tool.annotations.open_world_hint is False, tool.name
+
+
+async def test_every_instance_tool_is_open_world():
+    for tool in await all_tools():
+        if tool.name not in LOCAL_TOOLS:
+            assert tool.annotations.open_world_hint is True, tool.name
+
+
+async def test_read_only_hint_matches_the_registration_mode():
+    readonly = await tool_names("readonly")
+    for tool in await all_tools():
+        if tool.name in readonly:
+            assert tool.annotations.read_only_hint is True, tool.name
+        else:
+            assert tool.annotations.read_only_hint is False, tool.name
+
+
+async def test_deletes_and_execution_are_marked_destructive():
+    expected = {
+        "soar_delete_container",
+        "soar_delete_artifact",
+        "soar_replace_custom_list",
+        "soar_run_playbook",
+        "soar_run_action",
+        "soar_rest_post",
+        "soar_rest_delete",
+    }
+    for tool in await all_tools():
+        if tool.name in expected:
+            assert tool.annotations.destructive_hint is True, tool.name

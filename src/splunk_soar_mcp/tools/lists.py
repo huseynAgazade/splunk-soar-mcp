@@ -9,7 +9,9 @@ from ..app import SoarApp
 from ..formatting import listing, table, to_json
 
 READ = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=True)
-WRITE = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False)
+WRITE = ToolAnnotations(
+    read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=True
+)
 
 
 def register(mcp: MCPServer, app: SoarApp) -> None:
@@ -84,7 +86,10 @@ def register_writes(mcp: MCPServer, app: SoarApp) -> None:
     @mcp.tool(
         title="Replace custom list contents",
         annotations=ToolAnnotations(
-            read_only_hint=False, destructive_hint=True, idempotent_hint=True
+            read_only_hint=False,
+            destructive_hint=True,
+            idempotent_hint=True,
+            open_world_hint=True,
         ),
         description=(
             "Replace a custom list's entire contents. Every existing row is "

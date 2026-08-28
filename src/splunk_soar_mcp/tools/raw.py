@@ -56,7 +56,9 @@ def register_writes(mcp: MCPServer, app: SoarApp) -> None:
 
     @mcp.tool(
         title="Raw REST DELETE",
-        annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True),
+        annotations=ToolAnnotations(
+            read_only_hint=False, destructive_hint=True, open_world_hint=True
+        ),
         description=(
             "DELETE any SOAR REST path. Permanent, and bypasses every guard the "
             "dedicated tools apply. Confirm with the operator before calling."
