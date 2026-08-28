@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "splunk-soar-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "MCP server for Splunk SOAR (Phantom) — query and drive playbooks, containers, artifacts, apps and custom lists, and generate visual-editor blocks."
 readme = "README.md"
 requires-python = ">=3.10"

@@ -6,6 +6,14 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1]
+
+### Fixed
+
+- Corrected the author name in the package metadata and licence. The 0.1.0
+  release carries the wrong name; PyPI releases are immutable, so this release
+  exists to correct it.
+
 ### Added
 
 - Administration reads: `soar_get_system_settings` (34 sections, with a guide to

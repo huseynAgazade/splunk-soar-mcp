@@ -59,7 +59,7 @@ def build_server(settings: Settings | None = None) -> MCPServer:
     mcp = MCPServer(
         name="splunk-soar",
         title="Splunk SOAR",
-        version="0.1.0",
+        version="0.1.1",
         instructions=INSTRUCTIONS,
     )
 
