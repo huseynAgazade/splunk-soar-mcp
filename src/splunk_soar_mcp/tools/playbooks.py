@@ -272,36 +272,61 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
         title="List action runs",
         annotations=READ,
         description=(
-            "App action executions — what was run, whether it succeeded, and the "
-            "result message. Includes actions that failed before reaching an app, "
-            "which the per-asset execution records do not show."
+            "App action history, newest first — the audit view behind the UI's "
+            "Action Run page. Shows what ran, whether it succeeded, the result "
+            "message, and which user it ran as. Includes actions that failed "
+            "before reaching an app. Filter by container, playbook run, action "
+            "name or status."
         ),
     )
     async def soar_list_action_runs(
         container_id: int | None = None,
         status: str | None = None,
+        action: str | None = None,
+        playbook_run_id: int | None = None,
         page_size: int | None = None,
+        page: int = 0,
         as_json: bool = False,
     ) -> str:
-        """List app action runs.
+        """List app action runs, newest first.
 
         Args:
             container_id: Restrict to one container.
             status: One of "success", "failed", "running".
+            action: Case-insensitive action-name fragment, e.g. "block".
+            playbook_run_id: Restrict to actions run by one playbook run.
             page_size: Rows to return (default 25).
+            page: Zero-based page number.
             as_json: Return full JSON records instead of a table.
         """
-        extra: dict[str, object] = {}
+        extra: dict[str, object] = {
+            # Adds `playbook_run_effective_user` — the user the action ran as.
+            # This is what makes the listing an audit trail rather than a list of
+            # anonymous events, and it is what the Action Run page in the UI shows.
+            "_annotation_playbook_run_effective_user": 1,
+        }
         if container_id is not None:
             extra["_filter_container"] = int(container_id)
+        if playbook_run_id is not None:
+            extra["_filter_playbook_run"] = int(playbook_run_id)
         if status:
             extra["_filter_status"] = f'"{status.strip().lower()}"'
         payload = await app.client.search(
-            "action_run", None, page_size=page_size, sort="id", order="desc", **extra
+            "action_run",
+            action,
+            field="action",
+            page_size=page_size,
+            page=page,
+            sort="create_time",
+            order="desc",
+            **extra,
         )
         return listing(
             payload,
-            ["id", "action", "status", "message", "container", "playbook_run", "create_time"],
+            [
+                "id", "action", "status", "message", "container",
+                "playbook_run", "playbook_run_effective_user", "create_time",
+            ],
             as_json=as_json,
             empty="No action runs matched.",
         )

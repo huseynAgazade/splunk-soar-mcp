@@ -251,12 +251,23 @@ Installed with `pip` instead of `uv`? Use `"command": "splunk-soar-mcp"` and dro
 | `soar_list_action_runs` | App action executions, failures included. |
 | `soar_get_action_run` | One action run plus the per-asset executions beneath it. |
 
-**On logs.** SOAR keeps a debug log at the *playbook run* level only — there is no
-per-action log endpoint (`action_run/<id>/log` and `app_run/<id>/log` both return 400).
-For an action, `soar_get_action_run` is the equivalent: the `action_run` carries `status`
-and `message`, and the `app_run` beneath it carries `exception_occured`, `result_summary`
-and `result_data`. When an action fails inside a playbook, the reason is usually in the
-playbook run log; `result_data` is `null` on a failed run, so the `message` is what to read.
+**On logs.** There are two different things here, and only one of them is a log.
+
+*Playbook runs* have a real debug log — every `phantom.debug` line, block transition and
+traceback — read with `soar_get_playbook_run_log`.
+
+*Actions* have no debug log; `action_run/<id>/log` and `app_run/<id>/log` both return 400.
+What they have instead is **history**, which is what the UI's Action Run page shows and
+what `soar_list_action_runs` returns: newest first, with the action, its status and
+message, the container and playbook run, and — via the `_annotation_playbook_run_effective_user`
+annotation — **the user each action ran as**. That last column is what makes it an audit
+trail rather than a list of anonymous events, and it is how you tell automation apart from
+a specific service account.
+
+For one action's detail, `soar_get_action_run` returns the `action_run` (status, message)
+together with the `app_run`s beneath it (`exception_occured`, `result_summary`,
+`result_data`). On a failure `result_data` is `null`, so the `message` is what to read; if
+the action ran inside a playbook, the fuller reason is in that playbook's run log.
 
 ### Containers and artifacts
 
