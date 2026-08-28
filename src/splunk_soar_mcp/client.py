@@ -22,7 +22,8 @@ from .errors import NotFoundError, SoarError
 
 def _quoted(value: Any) -> str:
     """Wrap a filter value in the literal double quotes SOAR's ORM expects."""
-    return '"{0}"'.format(str(value).replace('"', '\\"'))
+    escaped = str(value).replace('"', '\\"')
+    return f'"{escaped}"'
 
 
 class SoarClient:

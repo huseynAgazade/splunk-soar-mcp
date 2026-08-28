@@ -1,11 +1,10 @@
 import httpx
 import pytest
 import respx
+from conftest import BASE, make_settings
 
 from splunk_soar_mcp.client import SoarClient, _quoted
 from splunk_soar_mcp.errors import NotFoundError, SoarError
-
-from conftest import BASE, make_settings
 
 
 @pytest.fixture

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from mcp.server.mcpserver import MCPServer
 
+from . import prompts, resources
 from .app import SoarApp
 from .config import Mode, Settings, load_settings
-from .tools import containers, lists, playbooks, platform, raw, run, vpe
-from . import prompts, resources
+from .tools import containers, lists, platform, playbooks, raw, run, vpe
 
 INSTRUCTIONS = """\
 Tools for a Splunk SOAR (Phantom) on-prem instance.

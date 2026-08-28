@@ -1,9 +1,8 @@
 import pytest
+from conftest import make_settings
 from pydantic import ValidationError
 
 from splunk_soar_mcp.config import Mode
-
-from conftest import make_settings
 
 
 def test_mode_ranking():

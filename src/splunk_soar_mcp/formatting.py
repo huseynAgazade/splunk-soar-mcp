@@ -9,7 +9,8 @@ listing tool still takes ``as_json=True`` for when the full record is wanted.
 from __future__ import annotations
 
 import json
-from typing import Any, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any
 
 MAX_CELL = 60
 

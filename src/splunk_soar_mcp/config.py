@@ -36,7 +36,7 @@ class Mode(str, Enum):
     def rank(self) -> int:
         return {"readonly": 0, "standard": 1, "full": 2}[self.value]
 
-    def allows(self, required: "Mode") -> bool:
+    def allows(self, required: Mode) -> bool:
         return self.rank >= required.rank
 
 

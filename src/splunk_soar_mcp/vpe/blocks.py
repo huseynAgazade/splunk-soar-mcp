@@ -15,7 +15,8 @@ from __future__ import annotations
 
 import base64
 import json
-from typing import Any, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any
 
 PLATFORM_VERSION = "7.1.0.225"
 COA_SCHEMA_VERSION = "5.0.23"

@@ -1,10 +1,9 @@
 import httpx
 import pytest
 import respx
+from conftest import BASE, make_settings
 
 from splunk_soar_mcp.server import build_server
-
-from conftest import BASE, make_settings
 
 WRITE_TOOLS = {"soar_add_comment", "soar_add_note", "soar_update_container", "soar_add_artifact"}
 FULL_TOOLS = {"soar_run_playbook", "soar_run_action", "soar_delete_container", "soar_rest_post"}
@@ -24,12 +23,12 @@ async def test_readonly_registers_no_mutating_tool():
 
 async def test_standard_adds_safe_writes_but_not_execution():
     names = await tool_names("standard")
-    assert WRITE_TOOLS <= names
+    assert names >= WRITE_TOOLS
     assert not (names & FULL_TOOLS)
 
 
 async def test_full_adds_execution_and_deletion():
-    assert FULL_TOOLS <= await tool_names("full")
+    assert await tool_names("full") >= FULL_TOOLS
 
 
 async def test_modes_are_strictly_nested():
