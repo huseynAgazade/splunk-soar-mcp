@@ -88,11 +88,115 @@ async def test_list_containers_renders_a_table_end_to_end():
 @respx.mock
 async def test_label_allowlist_blocks_a_write_to_a_forbidden_label():
     respx.get(f"{BASE}/rest/container/42").mock(
-        return_value=httpx.Response(200, json={"id": 42, "label": "production"})
+        return_value=httpx.Response(200, json={"id": 42, "label": "customer_b"})
     )
-    server = build_server(make_settings(SOAR_MCP_ALLOWED_LABELS="lab"))
-    with pytest.raises(Exception, match="production"):
+    server = build_server(make_settings(SOAR_MCP_ALLOWED_LABELS="customer_a"))
+    with pytest.raises(Exception, match="deployment restriction"):
         await server.call_tool("soar_add_comment", {"container_id": 42, "comment": "hi"})
+
+
+@respx.mock
+async def test_refusal_names_neither_the_target_label_nor_the_allowlist():
+    # On a multi-tenant instance the allowlist is the customer list; an error
+    # message that echoes it lets a caller enumerate every tenant.
+    respx.get(f"{BASE}/rest/container/42").mock(
+        return_value=httpx.Response(200, json={"id": 42, "label": "customer_b"})
+    )
+    server = build_server(
+        make_settings(SOAR_MCP_ALLOWED_LABELS="customer_a,customer_c")
+    )
+    with pytest.raises(Exception) as excinfo:
+        await server.call_tool("soar_add_comment", {"container_id": 42, "comment": "hi"})
+    message = str(excinfo.value)
+    for leaked in ("customer_a", "customer_b", "customer_c"):
+        assert leaked not in message
+
+
+@respx.mock
+async def test_allowlist_also_gates_reads():
+    respx.get(f"{BASE}/rest/container/42").mock(
+        return_value=httpx.Response(200, json={"id": 42, "label": "customer_b"})
+    )
+    server = build_server(make_settings(SOAR_MCP_ALLOWED_LABELS="customer_a"))
+    for tool, args in (
+        ("soar_get_container", {"container_id": 42}),
+        ("soar_list_artifacts", {"container_id": 42}),
+        ("soar_list_notes", {"container_id": 42}),
+        ("soar_list_comments", {"container_id": 42}),
+    ):
+        with pytest.raises(Exception, match="deployment restriction"):
+            await server.call_tool(tool, args)
+
+
+@respx.mock
+async def test_container_listing_is_scoped_to_permitted_labels():
+    route = respx.get(f"{BASE}/rest/container").mock(
+        return_value=httpx.Response(200, json={"count": 0, "data": []})
+    )
+    server = build_server(make_settings(SOAR_MCP_ALLOWED_LABELS="customer_a,customer_c"))
+    await server.call_tool("soar_list_containers", {})
+    params = route.calls.last.request.url.params
+    assert params["_filter_label__in"] == '["customer_a", "customer_c"]'
+
+
+@respx.mock
+async def test_unrestricted_listing_sends_no_label_filter():
+    route = respx.get(f"{BASE}/rest/container").mock(
+        return_value=httpx.Response(200, json={"count": 0, "data": []})
+    )
+    server = build_server(make_settings())
+    await server.call_tool("soar_list_containers", {})
+    assert "_filter_label__in" not in route.calls.last.request.url.params
+
+
+@respx.mock
+async def test_system_info_does_not_enumerate_tenants():
+    respx.get(f"{BASE}/rest/system_info").mock(
+        return_value=httpx.Response(200, json={"version": "7.1.0"})
+    )
+    server = build_server(
+        make_settings(SOAR_MCP_ALLOWED_LABELS="customer_a,customer_c")
+    )
+    rendered = str(await server.call_tool("soar_system_info", {}))
+    assert "customer_a" not in rendered and "customer_c" not in rendered
+    assert "2 label(s)" in rendered
+
+
+@respx.mock
+async def test_asset_credentials_never_reach_the_caller():
+    respx.get(f"{BASE}/rest/asset/7").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "id": 7,
+                "name": "prod_edr",
+                "configuration": {
+                    "base_url": "https://api.example.com",
+                    "client_secret": "SUPER-SECRET",
+                    "ph auth token": "tok_live_abc",
+                    "password": "hunter2",
+                },
+            },
+        )
+    )
+    server = build_server(make_settings())
+    rendered = str(await server.call_tool("soar_get_asset", {"asset_ref": "7"}))
+    for secret in ("SUPER-SECRET", "tok_live_abc", "hunter2"):
+        assert secret not in rendered
+    assert "prod_edr" in rendered
+    assert "https://api.example.com" in rendered
+
+
+@respx.mock
+async def test_raw_rest_get_is_redacted_too():
+    respx.get(f"{BASE}/rest/asset").mock(
+        return_value=httpx.Response(
+            200, json={"data": [{"configuration": {"api_key": "LEAKME"}}]}
+        )
+    )
+    server = build_server(make_settings())
+    rendered = str(await server.call_tool("soar_rest_get", {"path": "asset"}))
+    assert "LEAKME" not in rendered
 
 
 async def test_vpe_block_tool_round_trips_through_the_server():

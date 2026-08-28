@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from .client import SoarClient
 from .config import Mode, Settings
 from .errors import PermissionError_
@@ -35,10 +37,39 @@ class SoarApp:
             self._client = None
 
     def require_label(self, label: str | None, *, what: str = "container") -> None:
-        """Enforce SOAR_MCP_ALLOWED_LABELS before touching a tenant's data."""
+        """Enforce SOAR_MCP_ALLOWED_LABELS before touching a tenant's data.
+
+        The refusal names neither the target's label nor the permitted set. On a
+        multi-tenant instance the allowlist *is* the customer list, and an error
+        message is an answer — repeated calls would otherwise enumerate every
+        tenant the deployment knows about.
+        """
         if not self.settings.label_permitted(label):
-            allowed = ", ".join(sorted(self.settings.label_allowlist))
             raise PermissionError_(
-                f"Refusing to modify {what} with label {label!r}. "
-                f"SOAR_MCP_ALLOWED_LABELS permits only: {allowed}"
+                f"This deployment is scoped to a subset of container labels, and "
+                f"this {what} is outside it. That is a deployment restriction, "
+                f"not a transient error — do not retry, and do not try to reach "
+                f"the same data another way."
             )
+
+    def label_filter(self) -> dict[str, str]:
+        """Query parameters restricting a container listing to permitted labels.
+
+        Empty when no allowlist is configured, so an unrestricted deployment
+        pays nothing for this.
+        """
+        allow = self.settings.label_allowlist
+        if not allow:
+            return {}
+        return {"_filter_label__in": json.dumps(sorted(allow))}
+
+    async def guarded_container(self, container_id: int) -> dict:
+        """Fetch a container, refusing if its label is outside the allowlist.
+
+        Reads go through this as well as writes: on a scoped deployment, being
+        able to read another tenant's case is the disclosure, not just being
+        able to change it.
+        """
+        record = await self.client.get(f"container/{int(container_id)}")
+        self.require_label(record.get("label"))
+        return record

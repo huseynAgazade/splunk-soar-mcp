@@ -74,11 +74,46 @@ talked into using one.
 
 Two further guards:
 
-- **`SOAR_MCP_ALLOWED_LABELS`** — a container-label allowlist. Every write resolves the
-  target's label first and refuses if it is not permitted. On a multi-tenant or MSSP
-  instance this is what keeps an assistant inside one customer's data.
+- **`SOAR_MCP_ALLOWED_LABELS`** — a container-label allowlist, applied to reads and
+  writes alike. On a multi-tenant or MSSP instance this is what keeps an assistant inside
+  one customer's data. See [Tenant scoping](#tenant-scoping).
 - **`soar_delete_container`** requires the container's exact name as a second argument and
   refuses if it does not match, so a wrong id cannot delete the wrong case.
+
+### Credential redaction
+
+SOAR's REST API returns asset configuration verbatim, **credentials included** —
+`/rest/asset` hands back populated `password`, `client_secret`, `api_key` and
+`ph auth token` fields in plaintext. Anything this server returns may be read by a
+language model, written to a transcript and retained by whoever runs that model, so
+every response is scrubbed before it leaves the process:
+
+```
+soar_get_asset("prod_edr")
+  name           prod_edr
+  base_url       https://api.example.com
+  client_secret  «redacted by splunk-soar-mcp»
+```
+
+Redaction is keyed on the *field name*, not the value — guessing at values both misses
+real secrets and destroys legitimate data like file hashes. It runs at the single point
+every tool serialises through, covers `soar_rest_get` and error bodies as well as the
+typed tools, and is not configurable off.
+
+It is a safety net, not a licence: scope the automation user so it cannot read what it
+does not need.
+
+### Tenant scoping
+
+`SOAR_MCP_ALLOWED_LABELS` gates **reads as well as writes**. Container listings are
+filtered to the permitted labels server-side, and fetching a container, its artifacts,
+notes or comments outside that set is refused — on a scoped deployment, reading another
+tenant's case is the disclosure, not just changing it.
+
+Refusals name neither the target's label nor the permitted set, and `soar_system_info`
+reports only how many labels are permitted. On a multi-tenant instance the allowlist *is*
+the customer list, and an error message is an answer: without this, repeated calls would
+enumerate every tenant the deployment knows about.
 
 ### Running it for more than one person
 
@@ -135,7 +170,7 @@ in an env file (copy `.env.example` to `.env`).
 | `SPLUNK_SOAR_API` | *required* | Automation user token (`ph-auth-token`). |
 | `SOAR_MCP_ENV_FILE` | `.env` | Path to the env file to read. A stdio server inherits its working directory from its client, so an absolute path here is usually what you want. |
 | `SOAR_MCP_MODE` | `standard` | `readonly`, `standard` or `full`. |
-| `SOAR_MCP_ALLOWED_LABELS` | *(all)* | Comma-separated container labels writes may touch. |
+| `SOAR_MCP_ALLOWED_LABELS` | *(all)* | Comma-separated container labels this server may read or write. |
 | `SOAR_MCP_VERIFY_SSL` | `true` | Set `false` only for self-signed certs on a trusted network. |
 | `SOAR_MCP_CA_BUNDLE` | — | Path to a CA bundle. Preferred over disabling verification. |
 | `SOAR_MCP_TIMEOUT` | `60` | Per-request timeout, seconds. |

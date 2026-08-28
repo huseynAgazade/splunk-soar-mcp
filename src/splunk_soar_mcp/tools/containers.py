@@ -26,11 +26,6 @@ CONTAINER_FIELDS = [
 ]
 
 
-async def _label_of(app: SoarApp, container_id: int) -> str | None:
-    record = await app.client.get(f"container/{int(container_id)}")
-    return record.get("label")
-
-
 def register(mcp: MCPServer, app: SoarApp) -> None:
     @mcp.tool(
         title="List containers",
@@ -64,8 +59,14 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
             as_json: Return full JSON records instead of a table.
         """
         extra: dict[str, Any] = {}
+        if label:
+            app.require_label(label, what="label")
+            extra["_filter_label"] = f'"{label}"'
+        else:
+            # No label asked for: restrict the listing to what this deployment
+            # may see, rather than returning every tenant's containers.
+            extra.update(app.label_filter())
         for field, value in (
-            ("label", label),
             ("status", status),
             ("severity", severity),
             ("owner_name", owner),
@@ -94,7 +95,7 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
             container_id: The container id.
             as_json: Return the complete JSON record instead of a summary.
         """
-        record = await app.client.get(f"container/{int(container_id)}")
+        record = await app.guarded_container(container_id)
         if as_json:
             return to_json(record)
         summary = details(record, CONTAINER_FIELDS)
@@ -121,6 +122,7 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
             page_size: Rows to return (default 25).
             as_json: Return full JSON records, including all CEF fields.
         """
+        await app.guarded_container(container_id)
         payload = await app.client.get(
             f"container/{int(container_id)}/artifacts",
             page_size=app.client.clamp(page_size),
@@ -145,7 +147,9 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
         Args:
             artifact_id: The artifact id.
         """
-        return to_json(await app.client.get(f"artifact/{int(artifact_id)}"))
+        record = await app.client.get(f"artifact/{int(artifact_id)}")
+        await app.guarded_container(record["container"])
+        return to_json(record)
 
     @mcp.tool(
         title="List container notes",
@@ -159,6 +163,7 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
             container_id: The container id.
             as_json: Return full JSON records instead of rendered notes.
         """
+        await app.guarded_container(container_id)
         payload = await app.client.get(f"container/{int(container_id)}/notes", page_size=100)
         rows = payload.get("data") or []
         if as_json:
@@ -186,6 +191,7 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
         Args:
             container_id: The container id.
         """
+        await app.guarded_container(container_id)
         payload = await app.client.get(f"container/{int(container_id)}/comments", page_size=100)
         rows = payload.get("data") or []
         if not rows:
@@ -213,7 +219,7 @@ def register_writes(mcp: MCPServer, app: SoarApp) -> None:
             comment: Comment text.
         """
         container_id = int(container_id)
-        app.require_label(await _label_of(app, container_id))
+        await app.guarded_container(container_id)
         # Comments go to their own collection. Posting {"comment": ...} to the
         # container, or to container/<id>/comments, returns {"success": true}
         # and silently creates nothing — verified against 7.1.
@@ -242,7 +248,7 @@ def register_writes(mcp: MCPServer, app: SoarApp) -> None:
             note_format: "markdown" or "html".
         """
         container_id = int(container_id)
-        app.require_label(await _label_of(app, container_id))
+        await app.guarded_container(container_id)
         payload = {
             "container_id": container_id,
             "title": title,
@@ -286,7 +292,7 @@ def register_writes(mcp: MCPServer, app: SoarApp) -> None:
             description: New description.
         """
         container_id = int(container_id)
-        app.require_label(await _label_of(app, container_id))
+        await app.guarded_container(container_id)
         payload = {
             key: value
             for key, value in (
@@ -336,7 +342,7 @@ def register_writes(mcp: MCPServer, app: SoarApp) -> None:
             run_automation: Whether active playbooks should fire on this artifact.
         """
         container_id = int(container_id)
-        app.require_label(await _label_of(app, container_id))
+        await app.guarded_container(container_id)
         payload: dict[str, Any] = {
             "container_id": container_id,
             "name": name,
@@ -368,7 +374,7 @@ def register_destructive(mcp: MCPServer, app: SoarApp) -> None:
         """
         artifact_id = int(artifact_id)
         record = await app.client.get(f"artifact/{artifact_id}")
-        app.require_label(await _label_of(app, record["container"]), what="artifact")
+        await app.guarded_container(record["container"])
         await app.client.delete(f"artifact/{artifact_id}")
         return f"Artifact {artifact_id} deleted."
 
@@ -427,8 +433,7 @@ def register_destructive(mcp: MCPServer, app: SoarApp) -> None:
                 the wrong one. The call fails if it does not match.
         """
         container_id = int(container_id)
-        record = await app.client.get(f"container/{container_id}")
-        app.require_label(record.get("label"))
+        record = await app.guarded_container(container_id)
         actual = record.get("name") or ""
         if confirm_name.strip() != actual.strip():
             return (

@@ -36,8 +36,7 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
             scope: "new" for artifacts not yet processed, "all" for every artifact.
         """
         container_id = int(container_id)
-        record = await app.client.get(f"container/{container_id}")
-        app.require_label(record.get("label"))
+        await app.guarded_container(container_id)
         playbook_id = await app.client.resolve_id("playbook", playbook_ref, label="playbook")
         result = await app.client.post(
             "playbook_run",
@@ -77,8 +76,7 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
             name: Optional label for the run, shown in the action-run list.
         """
         container_id = int(container_id)
-        record = await app.client.get(f"container/{container_id}")
-        app.require_label(record.get("label"))
+        await app.guarded_container(container_id)
         asset_record = await app.client.resolve("asset", asset, label="asset")
         payload = {
             "action": action,

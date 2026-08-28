@@ -12,10 +12,23 @@ import json
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
+from .redaction import is_sensitive_key
+from .redaction import redact as _redact
+
 MAX_CELL = 60
+REDACTED_CELL = "«redacted»"
 
 
-def to_json(value: Any) -> str:
+def to_json(value: Any, *, redact: bool = True) -> str:
+    """Serialise for the caller.
+
+    Redacts by default: this is the one place every tool's raw output passes
+    through, which makes it the right place to guarantee credentials do not
+    leave the process. Pass ``redact=False`` only for data that provably
+    contains none, and be sure of it.
+    """
+    if redact:
+        value = _redact(value)
     return json.dumps(value, indent=2, default=str, ensure_ascii=False)
 
 
@@ -41,7 +54,10 @@ def table(
     if not rows:
         return empty
 
-    cells = [[_cell(row.get(col)) for col in columns] for row in rows]
+    cells = [
+        [REDACTED_CELL if is_sensitive_key(col) else _cell(row.get(col)) for col in columns]
+        for row in rows
+    ]
     widths = [
         max(len(col), *(len(cells[r][i]) for r in range(len(cells))))
         for i, col in enumerate(columns)
@@ -66,6 +82,9 @@ def details(record: Mapping[str, Any], keys: Iterable[str], *, width: int = 22) 
     lines = []
     for key in keys:
         if key not in record:
+            continue
+        if is_sensitive_key(key):
+            lines.append(f"{key.ljust(width)}  {REDACTED_CELL}")
             continue
         value = record[key]
         if isinstance(value, (dict, list)):

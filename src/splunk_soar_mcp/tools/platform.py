@@ -205,14 +205,17 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
     async def soar_system_info() -> str:
         """Report instance version and this server's safety configuration."""
         allow = app.settings.label_allowlist
+        # Report only *that* a scope exists. Listing the permitted labels would
+        # hand over the tenant roster of a multi-tenant instance.
+        scope = f"restricted to {len(allow)} label(s)" if allow else "all labels"
         header = details(
             {
                 "base_url": app.settings.soar_url,
                 "mcp_mode": app.mode.value,
-                "allowed_labels": ", ".join(sorted(allow)) if allow else "(all labels)",
+                "label_scope": scope,
                 "verify_ssl": app.settings.verify,
             },
-            ["base_url", "mcp_mode", "allowed_labels", "verify_ssl"],
+            ["base_url", "mcp_mode", "label_scope", "verify_ssl"],
         )
         try:
             info = await app.client.get("system_info")

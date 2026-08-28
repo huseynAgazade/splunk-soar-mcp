@@ -16,6 +16,18 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   status, since a run still executing has not written one yet.
 - httpx no longer logs one INFO line per REST call into the client's log pane.
 
+### Security
+
+- Credentials are stripped from every response. SOAR returns asset configuration
+  verbatim, including populated `password`, `client_secret`, `api_key` and
+  `ph auth token` fields; these are now replaced before anything leaves the
+  process, including via `soar_rest_get` and error bodies.
+- `SOAR_MCP_ALLOWED_LABELS` now gates reads as well as writes, and container
+  listings are filtered to permitted labels server-side.
+- Refusals no longer name the target's container label or the permitted set, and
+  `soar_system_info` reports only a count. On a multi-tenant instance the
+  allowlist is the customer list, so echoing it let a caller enumerate tenants.
+
 ### Changed
 
 - Credentials come from the environment or an env file only. The bespoke

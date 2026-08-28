@@ -18,6 +18,7 @@ import httpx
 
 from .config import Settings
 from .errors import NotFoundError, SoarError
+from .redaction import redact_text
 
 
 def _quoted(value: Any) -> str:
@@ -79,13 +80,15 @@ class SoarClient:
             raise NotFoundError(
                 f"/rest/{path} returned 404 (no such object or endpoint)",
                 status=404,
-                body=response.text[:500],
+                body=redact_text(response.text[:500]),
             )
         if not response.is_success:
+            # The body can echo the request payload, credentials included.
+            body = redact_text(response.text[:2000])
             raise SoarError(
-                f"HTTP {response.status_code} on {method} /rest/{path}: {response.text[:500]}",
+                f"HTTP {response.status_code} on {method} /rest/{path}: {body[:500]}",
                 status=response.status_code,
-                body=response.text[:2000],
+                body=body,
             )
         if not response.content:
             return {}
