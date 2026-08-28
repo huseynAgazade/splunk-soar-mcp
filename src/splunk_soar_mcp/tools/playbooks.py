@@ -272,9 +272,9 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
         title="List action runs",
         annotations=READ,
         description=(
-            "App action executions (app_run records) — what an action was called "
-            "with, whether it succeeded, and its result message. Filter by container "
-            "or by status to find failing integrations."
+            "App action executions — what was run, whether it succeeded, and the "
+            "result message. Includes actions that failed before reaching an app, "
+            "which the per-asset execution records do not show."
         ),
     )
     async def soar_list_action_runs(
@@ -297,11 +297,11 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
         if status:
             extra["_filter_status"] = f'"{status.strip().lower()}"'
         payload = await app.client.search(
-            "app_run", None, page_size=page_size, sort="id", order="desc", **extra
+            "action_run", None, page_size=page_size, sort="id", order="desc", **extra
         )
         return listing(
             payload,
-            ["id", "action", "app_name", "asset_name", "status", "message", "start_time"],
+            ["id", "action", "status", "message", "container", "playbook_run", "create_time"],
             as_json=as_json,
             empty="No action runs matched.",
         )
@@ -310,14 +310,22 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
         title="Get action run result",
         annotations=READ,
         description=(
-            "The full result of one app action run, including result_data — the "
-            "actual shape of the data a downstream datapath would read."
+            "One action run in full, together with the per-asset executions beneath "
+            "it. Those carry result_data — the actual shape of the data a downstream "
+            "datapath would read."
         ),
     )
     async def soar_get_action_run(run_id: int) -> str:
         """Show one app action run.
 
         Args:
-            run_id: The app_run id.
+            run_id: The action_run id, as listed by soar_list_action_runs.
         """
-        return to_json(await app.client.get(f"app_run/{int(run_id)}"))
+        run_id = int(run_id)
+        record = await app.client.get(f"action_run/{run_id}")
+        # The action_run holds status and message; the per-asset app_runs beneath
+        # it hold result_data, which is the shape a datapath actually reads.
+        app_runs = (
+            await app.client.get("app_run", page_size=25, _filter_action_run=run_id)
+        ).get("data") or []
+        return to_json({"action_run": record, "app_runs": app_runs})

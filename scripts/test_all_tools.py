@@ -497,16 +497,27 @@ async def phase_execute(run: Runner, args, found: dict, container: str | None) -
 
 async def phase_raw_writes(run: Runner, container: str | None) -> None:
     run.phase("PHASE 5 — raw REST escape hatches")
-    if not container:
+    if container:
+        await run.call("soar_rest_post", {
+            "path": f"container/{container}",
+            "payload": {"description": "Set via soar_rest_post during the smoke test."},
+        })
+    else:
         run.record("soar_rest_post", SKIP, "no throwaway container to write to")
-        run.record("soar_rest_delete", SKIP, "no throwaway object to delete")
+
+    # Exercise the raw DELETE against an object created for the purpose, so the
+    # tool is actually covered rather than assumed to work via delete_container.
+    scratch = f"zz_mcp_probe_raw_{int(time.time())}"
+    made = await run.call("soar_create_custom_list", {"name": scratch, "rows": [["raw"]]})
+    if not made:
+        run.record("soar_rest_delete", SKIP, "could not create a throwaway object to delete")
         return
-    await run.call("soar_rest_post", {
-        "path": f"container/{container}",
-        "payload": {"description": "Set via soar_rest_post during the smoke test."},
-    })
-    run.record("soar_rest_delete", SKIP,
-               "exercised by the container cleanup below, not called directly")
+    listed = await run.call("soar_list_custom_lists", {"query": scratch})
+    scratch_id = first_id(listed)
+    if not scratch_id:
+        run.record("soar_rest_delete", SKIP, "could not resolve the throwaway object")
+        return
+    await run.call("soar_rest_delete", {"path": f"decided_list/{scratch_id}"})
 
 
 async def cleanup(run: Runner, created: str | None) -> None:

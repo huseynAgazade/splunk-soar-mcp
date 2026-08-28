@@ -24,6 +24,14 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `soar_run_action` omitted the asset's `app_id` from the action target. SOAR
+  queued the run and then failed it with `app_id has invalid format`, so the
+  call looked like a success while the action never ran.
+- `soar_list_action_runs` and `soar_get_action_run` read `app_run`, the
+  per-asset execution layer, which does not record an action that failed before
+  reaching an app. They now read `action_run`, and `soar_get_action_run` returns
+  the app runs beneath it for their `result_data`.
+
 - `soar_add_comment` posted to `container/<id>`, which SOAR answers with
   `{"success": true}` while silently creating nothing. It now posts to
   `container_comment`, verified against 7.1.

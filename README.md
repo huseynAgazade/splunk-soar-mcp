@@ -334,8 +334,13 @@ and a second delete returns 404.
 
 | Tool | Purpose |
 |---|---|
-| `soar_run_playbook` | Run a playbook against a container. |
-| `soar_run_action` | Run one app action against an asset. |
+| `soar_run_playbook` | Run a playbook against a container. Returns a `playbook_run_id`. |
+| `soar_run_action` | Run one app action against an asset. Returns an `action_run_id`. |
+
+Both are asynchronous: they queue the work and return an id. Poll it with
+`soar_get_playbook_run` / `soar_get_action_run`, and read `soar_get_playbook_run_log`
+for the detail. A response saying the run *started* is not a response saying it
+succeeded.
 
 These perform real automation — containment, blocking, notification. Confirm with an
 operator before calling them.

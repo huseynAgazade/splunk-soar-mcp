@@ -8,6 +8,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
 from ..app import SoarApp
+from ..errors import SoarError
 from ..formatting import to_json
 
 EXECUTE = ToolAnnotations(
@@ -78,6 +79,15 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
         container_id = int(container_id)
         await app.guarded_container(container_id)
         asset_record = await app.client.resolve("asset", asset, label="asset")
+        # Each target must carry the id of the app the asset belongs to. Without
+        # it SOAR queues the run and then fails it with "app_id has invalid
+        # format", which looks like a success at the call site.
+        app_id = asset_record.get("app")
+        if app_id is None:
+            raise SoarError(
+                f"Asset {asset_record.get('name')!r} has no app associated with it, "
+                f"so there is nothing to run {action!r} against."
+            )
         payload = {
             "action": action,
             "container_id": container_id,
@@ -86,11 +96,13 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
                 {
                     "assets": [asset_record["name"]],
                     "parameters": [parameters or {}],
+                    "app_id": app_id,
                 }
             ],
         }
         result = await app.client.post("action_run", payload)
         return (
             f"Started action {action!r} on asset {asset_record['name']!r} "
-            f"(container {container_id}).\n{to_json(result)}"
+            f"(container {container_id}). Queued, not finished — poll it with "
+            f"soar_get_action_run.\n{to_json(result)}"
         )
