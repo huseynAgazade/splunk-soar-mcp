@@ -38,9 +38,9 @@ dev = ["pytest>=8", "pytest-asyncio>=0.23", "respx>=0.21", "ruff>=0.6"]
 splunk-soar-mcp = "splunk_soar_mcp.__main__:main"
 
 [project.urls]
-Homepage = "https://github.com/OWNER/splunk-soar-mcp"
-Repository = "https://github.com/OWNER/splunk-soar-mcp"
-Issues = "https://github.com/OWNER/splunk-soar-mcp/issues"
+Homepage = "https://github.com/huseynAgazade/splunk-soar-mcp"
+Repository = "https://github.com/huseynAgazade/splunk-soar-mcp"
+Issues = "https://github.com/huseynAgazade/splunk-soar-mcp/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/splunk_soar_mcp"]

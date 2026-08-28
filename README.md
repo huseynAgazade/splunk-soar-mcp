@@ -152,7 +152,7 @@ uvx splunk-soar-mcp --help
 pip install splunk-soar-mcp
 
 # or from source
-git clone https://github.com/OWNER/splunk-soar-mcp
+git clone https://github.com/huseynAgazade/splunk-soar-mcp
 cd splunk-soar-mcp
 pip install -e ".[dev]"
 ```
@@ -248,8 +248,15 @@ Installed with `pip` instead of `uv`? Use `"command": "splunk-soar-mcp"` and dro
 | `soar_list_playbook_runs` | Run history, filterable by playbook, container or status. |
 | `soar_get_playbook_run` | One run's full record. |
 | `soar_get_playbook_run_log` | **The debug log for one run**, with a substring filter. |
-| `soar_list_action_runs` | App action executions. |
-| `soar_get_action_run` | One action's full result, including `result_data`. |
+| `soar_list_action_runs` | App action executions, failures included. |
+| `soar_get_action_run` | One action run plus the per-asset executions beneath it. |
+
+**On logs.** SOAR keeps a debug log at the *playbook run* level only — there is no
+per-action log endpoint (`action_run/<id>/log` and `app_run/<id>/log` both return 400).
+For an action, `soar_get_action_run` is the equivalent: the `action_run` carries `status`
+and `message`, and the `app_run` beneath it carries `exception_occured`, `result_summary`
+and `result_data`. When an action fails inside a playbook, the reason is usually in the
+playbook run log; `result_data` is `null` on a failed run, so the `message` is what to read.
 
 ### Containers and artifacts
 

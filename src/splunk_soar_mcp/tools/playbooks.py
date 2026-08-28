@@ -312,7 +312,9 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
         description=(
             "One action run in full, together with the per-asset executions beneath "
             "it. Those carry result_data — the actual shape of the data a downstream "
-            "datapath would read."
+            "datapath would read. SOAR has no per-action debug log, so this is the "
+            "closest equivalent; on a failure result_data is null and the message "
+            "holds the reason."
         ),
     )
     async def soar_get_action_run(run_id: int) -> str:

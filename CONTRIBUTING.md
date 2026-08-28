@@ -5,7 +5,7 @@ Bug reports, endpoint corrections and new tools are all welcome.
 ## Getting set up
 
 ```bash
-git clone https://github.com/OWNER/splunk-soar-mcp
+git clone https://github.com/huseynAgazade/splunk-soar-mcp
 cd splunk-soar-mcp
 pip install -e ".[dev]"
 pytest        # the REST layer is mocked; no SOAR instance required
