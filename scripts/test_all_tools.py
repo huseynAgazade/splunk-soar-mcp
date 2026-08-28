@@ -113,6 +113,21 @@ def first_id(table: str | None) -> str | None:
     return None
 
 
+def first_block_name(table: str | None) -> str | None:
+    """First block name out of soar_list_playbook_blocks' table.
+
+    Its first column is a name, not an id, and the row after the header is a
+    rule of dashes — both of which the id-based helpers get wrong.
+    """
+    if not table:
+        return None
+    for line in table.splitlines():
+        candidate = re.split(r"\s{2,}", line.strip())[0]
+        if re.fullmatch(r"[A-Za-z_]\w*", candidate) and candidate != "block":
+            return candidate
+    return None
+
+
 def first_cell(table: str | None, column: int) -> str | None:
     if not table:
         return None
@@ -230,12 +245,7 @@ async def phase_read(run: Runner, args) -> dict:
         await run.call("soar_get_playbook", {"playbook_ref": playbook_id})
         blocks = await run.call("soar_list_playbook_blocks", {"playbook_ref": playbook_id})
         await run.call("soar_get_playbook_source", {"playbook_ref": playbook_id})
-        block_name = first_cell(blocks, 0) if blocks else None
-        # the block table's first column is the block name, not an id
-        if blocks:
-            body = [ln for ln in blocks.splitlines() if ln.strip()][2:]
-            if body:
-                block_name = re.split(r"\s{2,}", body[0].strip())[0]
+        block_name = first_block_name(blocks)
         if block_name:
             await run.call("soar_get_playbook_source",
                            {"playbook_ref": playbook_id, "block": block_name})
@@ -244,8 +254,14 @@ async def phase_read(run: Runner, args) -> dict:
                      "soar_get_playbook_source"):
             run.record(tool, SKIP, "no playbooks on this instance")
 
-    runs = await run.call("soar_list_playbook_runs", {"page_size": 5})
-    if (run_id := first_id(runs)):
+    # Prefer a finished run: the newest one is often still executing, and a
+    # running playbook has not written its log yet.
+    runs = await run.call("soar_list_playbook_runs", {"page_size": 5, "status": "success"})
+    run_id = first_id(runs)
+    if not run_id:
+        runs = await run.call("soar_list_playbook_runs", {"page_size": 5})
+        run_id = first_id(runs)
+    if run_id:
         await run.call("soar_get_playbook_run", {"run_id": int(run_id)})
         await run.call("soar_get_playbook_run_log", {"run_id": int(run_id), "limit": 20})
         await run.call("soar_get_playbook_run_log",

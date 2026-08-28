@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from mcp.server.mcpserver import MCPServer
 
 from . import prompts, resources
@@ -38,6 +40,10 @@ Safety
 def build_server(settings: Settings | None = None) -> MCPServer:
     settings = settings or load_settings()
     app = SoarApp(settings)
+
+    # httpx logs every request at INFO. On a stdio server that floods the
+    # client's log pane with one line per REST call and hides anything useful.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
     mcp = MCPServer(
         name="splunk-soar",

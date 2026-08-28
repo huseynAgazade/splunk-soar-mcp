@@ -240,23 +240,19 @@ def register(mcp: MCPServer, app: SoarApp) -> None:
             limit: Maximum log lines to return (default 300, newest kept).
         """
         run_id = int(run_id)
-        payload = None
-        errors = []
-        for path, params in (
-            (f"playbook_run/{run_id}/log", {"page_size": 0}),
-            ("playbook_run_log", {"_filter_playbook_run": run_id, "page_size": 0}),
-        ):
-            try:
-                payload = await app.client.get(path, **params)
-                break
-            except SoarError as exc:
-                errors.append(f"{path}: {exc}")
-        if payload is None:
-            return "Could not read the run log.\n" + "\n".join(errors)
+        # page_size=0 means "every row" here, which is what a log is for.
+        payload = await app.client.get(f"playbook_run/{run_id}/log", page_size=0)
 
         rows = payload.get("data") if isinstance(payload, dict) else payload
         if not rows:
-            return f"Run {run_id} has no log entries."
+            # A run that is still executing has not written its log yet.
+            status = ""
+            try:
+                record = await app.client.get(f"playbook_run/{run_id}")
+                status = f" (status: {record.get('status')})"
+            except SoarError:
+                pass
+            return f"Run {run_id} has no log entries{status}."
         if contains:
             needle = contains.lower()
             rows = [r for r in rows if needle in str(r.get("message", "")).lower()]

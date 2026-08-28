@@ -54,7 +54,24 @@ class SoarClient:
         try:
             response = await self._client.request(method, path, **kwargs)
         except httpx.TimeoutException as exc:
-            raise SoarError(f"Timed out after {self.settings.timeout}s on {method} /rest/{path}") from exc
+            raise SoarError(
+                f"Timed out after {self.settings.timeout}s on {method} /rest/{path}"
+            ) from exc
+        except httpx.ConnectError as exc:
+            # On-prem SOAR ships a self-signed certificate by default, and that
+            # certificate usually cannot be pinned as its own CA either (it
+            # carries no Authority Key Identifier). Say so, rather than leaving
+            # the operator to decode an OpenSSL string.
+            if "CERTIFICATE_VERIFY_FAILED" in str(exc):
+                raise SoarError(
+                    f"TLS verification failed for {self.base}: {exc}\n\n"
+                    "On-prem SOAR usually ships a self-signed certificate. Either point "
+                    "SOAR_MCP_CA_BUNDLE at a CA bundle that signs it, or — if it is "
+                    "self-signed and cannot be pinned — set SOAR_MCP_VERIFY_SSL=false "
+                    "and make sure the connection is otherwise trusted (VPN, private "
+                    "network)."
+                ) from exc
+            raise SoarError(f"Could not reach SOAR at {self.base}: {exc}") from exc
         except httpx.HTTPError as exc:
             raise SoarError(f"Could not reach SOAR at {self.base}: {exc}") from exc
 
