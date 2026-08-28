@@ -97,12 +97,14 @@ Requires Python 3.10+.
 
 ## Configure
 
-Copy `.env.example` to `.env`, or set the variables in the environment.
+Set these in the environment, in the `env` block of your MCP client's server config, or
+in an env file (copy `.env.example` to `.env`).
 
 | Variable | Default | Meaning |
 |---|---|---|
 | `SPLUNK_SOAR_URL` | *required* | Base URL, e.g. `https://soar.example.com`. A trailing `/rest` is stripped. |
 | `SPLUNK_SOAR_API` | *required* | Automation user token (`ph-auth-token`). |
+| `SOAR_MCP_ENV_FILE` | `.env` | Path to the env file to read. A stdio server inherits its working directory from its client, so an absolute path here is usually what you want. |
 | `SOAR_MCP_MODE` | `standard` | `readonly`, `standard` or `full`. |
 | `SOAR_MCP_ALLOWED_LABELS` | *(all)* | Comma-separated container labels writes may touch. |
 | `SOAR_MCP_VERIFY_SSL` | `true` | Set `false` only for self-signed certs on a trusted network. |
@@ -317,8 +319,8 @@ reaches the model, where a plain exception would be masked.
 
 ## Security
 
-- **Never commit credentials.** `.env` and `secrets.txt` are gitignored. The token is
-  equivalent to the automation user's full permissions.
+- **Never commit credentials.** `.env` is gitignored. The token is equivalent to the
+  automation user's full permissions.
 - **Scope the automation user's role** to the mode you run in. `SOAR_MCP_MODE` shapes what
   the assistant is offered; the SOAR role is what actually enforces it.
 - **Use `SOAR_MCP_ALLOWED_LABELS` on multi-tenant instances.** It is the difference between

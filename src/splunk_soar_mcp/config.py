@@ -1,20 +1,19 @@
 """Configuration and the safety model.
 
-Credentials resolve in this order (first hit wins):
-  1. process environment
-  2. a ``.env`` file in the working directory
-  3. a ``secrets.txt`` file (``$SOAR_SECRETS``, cwd, or any parent directory)
+Credentials come from the process environment, or from an env file — the
+standard twelve-factor arrangement. For an MCP client that launches this server
+over stdio, the natural place is the ``env`` block of the client's own server
+config; for an HTTP deployment, real environment variables or a secret manager.
 
-``secrets.txt`` uses the same ``KEY=value`` format as ``.env`` and exists so the
-server can drop into an established Splunk SOAR workflow without a second copy
-of the token.
+``SOAR_MCP_ENV_FILE`` overrides which env file is read, since a stdio server
+inherits its working directory from whatever launched it and a relative default
+is not always the file you meant.
 """
 
 from __future__ import annotations
 
 import os
 from enum import Enum
-from pathlib import Path
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -40,46 +39,12 @@ class Mode(str, Enum):
         return self.rank >= required.rank
 
 
-def _find_secrets_file() -> Path | None:
-    candidates: list[Path] = []
-    if os.environ.get("SOAR_SECRETS"):
-        candidates.append(Path(os.environ["SOAR_SECRETS"]))
-    here = Path.cwd()
-    candidates.append(here / "secrets.txt")
-    candidates.extend(parent / "secrets.txt" for parent in here.parents)
-    for path in candidates:
-        if path.is_file():
-            return path
-    return None
-
-
-def _load_secrets_fallback() -> None:
-    """Populate missing SOAR env vars from a discovered ``secrets.txt``.
-
-    Only fills gaps — anything already in the environment wins.
-    """
-    if os.environ.get("SPLUNK_SOAR_URL") and os.environ.get("SPLUNK_SOAR_API"):
-        return
-    path = _find_secrets_file()
-    if path is None:
-        return
-    try:
-        text = path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return
-    for line in text.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        key, value = key.strip(), value.strip().strip("'\"")
-        if key in ("SPLUNK_SOAR_URL", "SPLUNK_SOAR_API") and not os.environ.get(key):
-            os.environ[key] = value
-
-
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False
+        env_file=os.environ.get("SOAR_MCP_ENV_FILE", ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
     )
 
     soar_url: str = Field(validation_alias="SPLUNK_SOAR_URL")
@@ -125,5 +90,4 @@ class Settings(BaseSettings):
 
 
 def load_settings() -> Settings:
-    _load_secrets_fallback()
     return Settings()  # type: ignore[call-arg]

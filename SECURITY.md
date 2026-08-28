@@ -28,4 +28,4 @@ Out of scope, because they are documented behaviour rather than defects:
 
 `SPLUNK_SOAR_API` is equivalent to the automation user's password. Keep it in `.env` or a
 secret manager — never in the repository, a client config committed to git, or a shell
-history. `.env` and `secrets.txt` are gitignored.
+history. `.env` is gitignored.
