@@ -27,3 +27,5 @@ jobs:
         run: |
           splunk-soar-mcp --list-tools --mode readonly
           splunk-soar-mcp --list-tools --mode full
+      - name: End-to-end stdio smoke test
+        run: python scripts/smoke_test.py

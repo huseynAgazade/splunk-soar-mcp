@@ -273,8 +273,10 @@ not to.
 
 ```bash
 pip install -e ".[dev]"
-pytest              # no live instance needed — the REST layer is mocked
+pytest                          # no live instance needed — the REST layer is mocked
 ruff check .
+python scripts/smoke_test.py    # drives the server over stdio as a real MCP client
+python scripts/smoke_test.py --live   # ...and calls the configured instance
 ```
 
 Layout:
@@ -289,6 +291,7 @@ src/splunk_soar_mcp/
   tools/          platform, playbooks, containers, lists, run, raw, vpe
   vpe/blocks.py   clipboard payload codec and node builders
   reference/      the markdown served as resources
+scripts/smoke_test.py   an example MCP client that exercises the server
 ```
 
 Adding a tool: write it in the right `tools/` module with a `@mcp.tool` decorator, a
