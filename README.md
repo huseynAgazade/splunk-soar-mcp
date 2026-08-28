@@ -56,6 +56,12 @@ Three things it does that a generic REST wrapper does not:
 
 ## Safety model
 
+> **Read this first.** These modes are **guardrails, not a security boundary.** They stop
+> an assistant from wandering; they stop nobody who holds the API token, because that
+> person can bypass this server with one `curl`. **The only enforcement that actually
+> holds is the SOAR role on the automation user whose token you configured.** Scope that
+> role to the job, and treat everything below as defence in depth on top of it.
+
 `SOAR_MCP_MODE` decides which tools are **registered**, not merely which ones refuse when
 called. A `readonly` server does not expose a single mutating tool, so nothing can be
 talked into using one.
@@ -74,9 +80,32 @@ Two further guards:
 - **`soar_delete_container`** requires the container's exact name as a second argument and
   refuses if it does not match, so a wrong id cannot delete the wrong case.
 
-> Modes are advisory boundaries for an assistant, not a security control against a hostile
-> operator: the API token itself carries whatever permissions SOAR granted it. Scope the
-> automation user's role to match the mode you run in.
+### Running it for more than one person
+
+If several people or roles share an instance, do **not** try to express that with one
+server and application-level checks. Run **one process per role, each with its own SOAR
+automation user**:
+
+| Process | `SOAR_MCP_MODE` | SOAR automation user's role |
+|---|---|---|
+| analyst | `full` | view/edit containers, run playbooks, scoped to their tenants |
+| engineer | `readonly` | read-only across the instance |
+| dashboard | `readonly` | read-only, one tenant |
+
+The isolation that matters there is not this server's mode — it is that each process holds
+a **differently privileged credential**. If the layer above is compromised, prompt-injected
+or simply wrong, SOAR still refuses the call. A single process with in-code role checks
+gives you none of that, because it holds one token that can do everything any role can do.
+
+Three rules for that deployment:
+
+- The SOAR token never reaches a browser, and this server is never reachable from the
+  internet.
+- Authenticate your users at your own application, not here — MCP's OAuth support secures
+  the *service-to-service* hop, not end-user login.
+- Anything irreversible — containment, isolation, blocking — gets an explicit human
+  confirmation, not an assistant's decision. Container data is attacker-controlled text,
+  so prompt injection against a SOAR assistant is a realistic threat, not a theoretical one.
 
 ## Install
 

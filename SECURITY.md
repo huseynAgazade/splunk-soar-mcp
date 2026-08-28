@@ -15,6 +15,18 @@ In scope: credential leakage, request forgery against the SOAR instance, bypass 
 `SOAR_MCP_MODE` or `SOAR_MCP_ALLOWED_LABELS`, and anything letting a tool call reach an
 operation its mode should not permit.
 
+## What this server is and is not
+
+It is a **guardrail**, not a security boundary. `SOAR_MCP_MODE` and
+`SOAR_MCP_ALLOWED_LABELS` constrain what an AI assistant is offered; they do not constrain
+anyone who holds the API token, who can bypass this server entirely with a direct REST
+call. The enforcement that holds is the SOAR role attached to the automation user whose
+token you configured.
+
+Reports of the form "with the token I could do X" are therefore not vulnerabilities — that
+is the token working as designed. Reports that a caller **without** the token, or with a
+correctly narrowed role, can reach an operation are very much in scope.
+
 Out of scope, because they are documented behaviour rather than defects:
 
 - **`full` mode is dangerous by design.** It can run playbooks and delete containers.
