@@ -480,6 +480,17 @@ reaches the model, where a plain exception would be masked.
   network is the honest option — the alternative is a CA bundle that silently does nothing.
 - Found a vulnerability? See [SECURITY.md](SECURITY.md).
 
+## How this was built
+
+Written with an AI coding assistant. The design came from working with SOAR's REST API
+directly: filter values need literal quotes inside the query string, the playbook-editor
+clipboard format is undocumented, and the distinction between
+`cf_lookup:custom_function:result` (the code-block shape) and
+`cf_lookup:custom_function_result.data.result` (the custom-function shape) is the kind of
+thing you only learn by debugging a playbook that silently returns nothing.
+
+---
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
